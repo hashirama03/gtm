@@ -12,13 +12,12 @@
 
 ## Your DNSTT Nameserver & your Domain `A` Record
 
-NS='us1-ns.jkimdns.com'
-NS1='hk1-ns.jkimdns.com'
-NS2='james.ubuntu.sardinas.cf'
-NS3='sg1-ns.jkimdns.com'
-NS4='sg1-dns.microsshsvr.host'
-NS5='sg2-ns.jkimdns.com'
-A='sdns01.volantdns.com'
+NS1='priv.ns1.jkimhost.com'
+NS2='priv.ns2.jkimhost.com'
+NS3='priv.ns3.jkimhost.com'
+NS4='priv.ns4.jkimhost.com'
+NS5='priv.ns5.jkimhost.com'
+A='jkimhost.com'
 
 ## Repeat dig cmd loop time (seconds) (positive integer only)
 
@@ -55,7 +54,7 @@ if [ ! "$_DIG" ]; then
 fi
 
 endscript() {
-    unset NS NS1 NS2 NS3 NS4 NS5 A LOOP_DELAY HOSTS _DIG DIG_EXEC CUSTOM_DIG T R M
+    unset NS1 NS2 NS3 NS4 NS5 A LOOP_DELAY HOSTS _DIG DIG_EXEC CUSTOM_DIG T R M
     exit 1
 }
 
@@ -63,7 +62,7 @@ trap endscript 2 15
 
 check() {
     for ((i=0; i<"${#HOSTS[*]}"; i++)); do
-        for R in "${A}" "${NS}" "${NS1}" "${NS2}" "${NS3}" "${NS4}" "${NS5}" "${NS6}" "${NS7}" "${NS8}" "${NS9}" "${NS10}" "${NS11}" "${NS12}" "${NS13}" "${NS14}" "${NS15}" "${NS16}" "${NS17}" "${NS18}" "${NS19}" "${NS20}" "${NS21}" "${NS22}" "${NS23}" "${NS24}"; do
+        for R in "${A}" "${NS1}" "${NS2}" "${NS3}" "${NS4}" "${NS5}" "${NS6}" "${NS7}" "${NS8}" "${NS9}" "${NS10}" "${NS11}" "${NS12}" "${NS13}" "${NS14}" "${NS15}" "${NS16}" "${NS17}" "${NS18}" "${NS19}" "${NS20}" "${NS21}" "${NS22}" "${NS23}" "${NS24}"; do
             T="${HOSTS[$i]}"
             if [ -z "$(timeout -k 3 3 ${_DIG} @${T} ${R})" ]; then
                 M=31
