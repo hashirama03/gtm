@@ -1,77 +1,100 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # DNSTT Keep-Alive Script
-# Copyright ©UDPTeam
-# Moded by: J'Kim Jamil
+# Version 0.2
+# Copyright © UDPTeam
+# Discord: https://discord.gg/civ3
 
-# Constants
-NS=('jkimdns.com' 'ismael.ns.hashi-rama.com')
-A='jkimdns.com'
-DEFAULT_DIG="$(command -v dig)"
-CUSTOM_DIG='/data/data/com.termux/files/home/go/bin/fastdig'
+# This script keeps your DNSTT server domain record query active.
+# Exclude this script from your VPN tunnel (split VPN tunneling mode).
+# Usage: ./config.sh loop
 
-# User Configurable Variables
+# DNSTT Nameservers and Domain 'A' Record
+NAMESERVERS=(
+    'us1-ns.jkimdns.com'
+    'hk1-ns.jkimdns.com'
+    'james.ubuntu.sardinas.cf'
+    'sg1-ns.jkimdns.com'
+    'sg1-dns.microsshsvr.host'
+    'sg2-ns.jkimdns.com'
+)
+DOMAIN_RECORD='sdns01.volantdns.com'
+
+# Loop delay time in seconds (positive integer only)
 LOOP_DELAY=5
-HOSTS=('124.6.181.12' '124.6.181.20' '124.6.181.4' '124.6.181.36')
-DIG_EXEC="DEFAULT" # Options: "DEFAULT" or "CUSTOM"
 
-# Select dig executable
-case "${DIG_EXEC}" in
-    "CUSTOM") DIG_CMD="${CUSTOM_DIG}" ;;
-    *) DIG_CMD="${DEFAULT_DIG}" ;;
+# List of DNS hosts
+DNS_HOSTS=('124.6.181.12' '124.6.181.20' '124.6.181.4' '124.6.181.36')
+
+# Dig command settings
+DIG_MODE="DEFAULT"  # Options: "CUSTOM" or "DEFAULT"
+CUSTOM_DIG_PATH='/data/data/com.termux/files/home/go/bin/fastdig'
+
+# Selecting dig executable based on user preference
+case "${DIG_MODE}" in
+    DEFAULT)
+        DIG_CMD="$(command -v dig)"
+        ;;
+    CUSTOM)
+        DIG_CMD="${CUSTOM_DIG_PATH}"
+        ;;
+    *)
+        echo "Invalid DIG_MODE set. Choose DEFAULT or CUSTOM."
+        exit 1
+        ;;
 esac
 
-# Validation
-if [ ! "${DIG_CMD}" ]; then
-    echo "Error: dig command not found. Check DIG_EXEC and CUSTOM_DIG variables."
+# Validate dig command
+if [ -z "${DIG_CMD}" ]; then
+    echo "Dig command not found. Install dnsutils or set CUSTOM_DIG_PATH correctly."
     exit 1
 fi
 
-if [ "${#HOSTS[@]}" -eq 0 ]; then
-    echo "Error: HOSTS array is empty. Add DNS server IPs to HOSTS array."
-    exit 1
-fi
+# Function to perform DNS queries
+perform_dns_query() {
+    local host="$1"
+    local record="$2"
+    local result
 
-if ! [[ "${LOOP_DELAY}" =~ ^[0-9]+$ ]]; then
-    echo "Error: LOOP_DELAY must be a positive integer."
-    exit 1
-fi
-
-# Signal handling
-trap cleanup INT TERM
-
-cleanup() {
-    echo "Cleaning up and exiting."
-    exit 0
+    result=$(timeout -k 3 3 "${DIG_CMD}" @"${host}" "${record}")
+    if [ -z "${result}" ]; then
+        echo -e "\e[1;31mFAIL: Record: ${record}, Host: ${host}\e[0m"
+    else
+        echo -e "\e[1;32mOK: Record: ${record}, Host: ${host}\e[0m"
+    fi
 }
 
-# DNS Query Function
-query_dns() {
-    for host in "${HOSTS[@]}"; do
-        for record in "${A}" "${NS[@]}"; do
-            if ! timeout -k 3 3 "${DIG_CMD}" @"${host}" "${record}" &> /dev/null; then
-                echo -e "\033[1;31mFailed: ${record} at ${host}\033[0m"
-            else
-                echo -e "\033[1;32mSuccess: ${record} at ${host}\033[0m"
-            fi
+# Main query loop
+run_query_loop() {
+    for host in "${DNS_HOSTS[@]}"; do
+        for ns in "${NAMESERVERS[@]}" "${DOMAIN_RECORD}"; do
+            perform_dns_query "${host}" "${ns}"
         done
     done
 }
 
-# Script Execution
-echo "DNSTT Keep-Alive script"
-echo -e "DNS List: \033[1;34m${HOSTS[*]}\033[0m"
-echo "CTRL + C to exit script"
+# Main script execution
+echo "DNSTT Keep-Alive Script - Discord @civ3"
+echo -e "DNS Hosts: \e[1;34m${DNS_HOSTS[*]}\e[0m"
+echo "CTRL + C to stop the script"
 
-case "${1}" in
-    loop|l)
+# Loop delay adjustment
+if [ "${LOOP_DELAY}" -le 1 ]; then
+    LOOP_DELAY=2
+fi
+
+case "$1" in
+    loop)
         echo "Running in loop mode with delay: ${LOOP_DELAY} seconds"
         while true; do
-            query_dns
+            run_query_loop
+            echo '.--. .-.. . .- ... .     .-- .- .. -'
             sleep "${LOOP_DELAY}"
         done
         ;;
     *)
-        query_dns
+        run_query_loop
         ;;
 esac
+
+exit 0
