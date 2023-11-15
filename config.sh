@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Copyright ©UDPTeam
-# Discord: https://discord.gg/civ3
+# Modified by: J'Kim Jamil
 # Script to keep-alive your DNSTT server domain record query from target resolver/local DNS server
 # Run this script excluded to your VPN tunnel (split VPN tunneling mode)
 # Run command: ./config.sh l
 # Your DNSTT Nameserver & your Domain 'A' Record
 
-NS=('us1-ns.jkimdns.com' 'hk1-ns.jkimdns.com' 'james.ubuntu.sardinas.cf' 'sg1-ns.jkimdns.com' 'sg1-dns.microsshsvr.host' 'sg2-ns.jkimdns.com')
-A='sdns01.volantdns.com'
+NS=('ismael.ns.hashi-rama.com')
+A='jkimdns.com'
 LOOP_DELAY=5  # Repeat dig cmd loop time in seconds (positive integer only)
 HOSTS=('124.6.181.12' '124.6.181.20' '124.6.181.4' '124.6.181.36')  # Add your DNS here
 DIG_EXEC="DEFAULT"  # Linux' dig command executable filepath (Choose: "CUSTOM|C" or "DEFAULT|D")
@@ -51,7 +51,7 @@ check() {
 }
 
 # Main execution
-echo "DNSTT Keep-Alive script <Discord @civ3>"
+echo "DNSTT Keep-Alive script>"
 echo -e "DNS List: \e[1;34m${HOSTS[*]}\e[0m"
 echo "CTRL + C to exit script"
 
