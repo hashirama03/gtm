@@ -61,7 +61,7 @@ case "${1}" in
         echo "Looping every ${LOOP_DELAY}s"
         while true; do
             check
-            echo '.--. .-.. . .- ... .     .-- .- .. -'
+            echo '----------------------------------'
             sleep "${LOOP_DELAY}"
         done
         ;;
