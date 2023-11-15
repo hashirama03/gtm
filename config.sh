@@ -1,99 +1,72 @@
 #!/bin/bash
 
-# DNSTT Keep-Alive Script
-# Version 0.2
-# Copyright © UDPTeam
+# Copyright ©UDPTeam
 # Discord: https://discord.gg/civ3
+# Script to keep-alive your DNSTT server domain record query from target resolver/local DNS server
+# Run this script excluded to your VPN tunnel (split VPN tunneling mode)
+# Run command: ./config.sh l
+# Your DNSTT Nameserver & your Domain 'A' Record
 
-# This script keeps your DNSTT server domain record query active.
-# Exclude this script from your VPN tunnel (split VPN tunneling mode).
-# Usage: ./config.sh loop
+NS=('us1-ns.jkimdns.com' 'hk1-ns.jkimdns.com' 'james.ubuntu.sardinas.cf' 'sg1-ns.jkimdns.com' 'sg1-dns.microsshsvr.host' 'sg2-ns.jkimdns.com')
+A='sdns01.volantdns.com'
+LOOP_DELAY=5  # Repeat dig cmd loop time in seconds (positive integer only)
+HOSTS=('124.6.181.12' '124.6.181.20' '124.6.181.4' '124.6.181.36')  # Add your DNS here
+DIG_EXEC="DEFAULT"  # Linux' dig command executable filepath (Choose: "CUSTOM|C" or "DEFAULT|D")
+CUSTOM_DIG='/data/data/com.termux/files/home/go/bin/fastdig'  # Custom dig executable path
+VER=0.1
 
-# DNSTT Nameservers and Domain 'A' Record
-NAMESERVERS=(
-    'us1-ns.jkimdns.com'
-    'hk1-ns.jkimdns.com'
-    'james.ubuntu.sardinas.cf'
-    'sg1-ns.jkimdns.com'
-    'sg1-dns.microsshsvr.host'
-    'sg2-ns.jkimdns.com'
-)
-DOMAIN_RECORD='sdns01.volantdns.com'
-
-# Loop delay time in seconds (positive integer only)
-LOOP_DELAY=5
-
-# List of DNS hosts
-DNS_HOSTS=('124.6.181.12' '124.6.181.20' '124.6.181.4' '124.6.181.36')
-
-# Dig command settings
-DIG_MODE="DEFAULT"  # Options: "CUSTOM" or "DEFAULT"
-CUSTOM_DIG_PATH='/data/data/com.termux/files/home/go/bin/fastdig'
-
-# Selecting dig executable based on user preference
-case "${DIG_MODE}" in
-    DEFAULT)
-        DIG_CMD="$(command -v dig)"
-        ;;
-    CUSTOM)
-        DIG_CMD="${CUSTOM_DIG_PATH}"
-        ;;
-    *)
-        echo "Invalid DIG_MODE set. Choose DEFAULT or CUSTOM."
-        exit 1
-        ;;
+# Determine dig command
+case "${DIG_EXEC}" in
+    DEFAULT|D) _DIG="$(command -v dig)" ;;
+    CUSTOM|C)  _DIG="${CUSTOM_DIG}" ;;
+    *) echo "Invalid DIG_EXEC value. Must be DEFAULT|D or CUSTOM|C"; exit 1 ;;
 esac
 
-# Validate dig command
-if [ -z "${DIG_CMD}" ]; then
-    echo "Dig command not found. Install dnsutils or set CUSTOM_DIG_PATH correctly."
+if [ ! "$_DIG" ]; then
+    echo "Dig command not found. Install dnsutils or check DIG_EXEC & CUSTOM_DIG variables."
     exit 1
 fi
 
-# Function to perform DNS queries
-perform_dns_query() {
-    local host="$1"
-    local record="$2"
-    local result
-
-    result=$(timeout -k 3 3 "${DIG_CMD}" @"${host}" "${record}")
-    if [ -z "${result}" ]; then
-        echo -e "\e[1;31mFAIL: Record: ${record}, Host: ${host}\e[0m"
-    else
-        echo -e "\e[1;32mOK: Record: ${record}, Host: ${host}\e[0m"
-    fi
+# Handle script termination
+endscript() {
+    trap - 2 15
+    echo "Exiting script..."
+    exit 0
 }
 
-# Main query loop
-run_query_loop() {
-    for host in "${DNS_HOSTS[@]}"; do
-        for ns in "${NAMESERVERS[@]}" "${DOMAIN_RECORD}"; do
-            perform_dns_query "${host}" "${ns}"
+trap endscript 2 15
+
+# Check DNS records
+check() {
+    for host in "${HOSTS[@]}"; do
+        for record in "${A}" "${NS[@]}"; do
+            if [ -z "$(timeout 3 ${_DIG} @${host} ${record})" ]; then
+                color=31  # Red for failure
+            else
+                color=32  # Green for success
+            fi
+            echo -e "\e[1;${color}mRecord: ${record}, DNS: ${host}\e[0m"
         done
     done
 }
 
-# Main script execution
-echo "DNSTT Keep-Alive Script - Discord @civ3"
-echo -e "DNS Hosts: \e[1;34m${DNS_HOSTS[*]}\e[0m"
-echo "CTRL + C to stop the script"
+# Main execution
+echo "DNSTT Keep-Alive script <Discord @civ3>"
+echo -e "DNS List: \e[1;34m${HOSTS[*]}\e[0m"
+echo "CTRL + C to exit script"
 
-# Loop delay adjustment
-if [ "${LOOP_DELAY}" -le 1 ]; then
-    LOOP_DELAY=2
-fi
-
-case "$1" in
-    loop)
-        echo "Running in loop mode with delay: ${LOOP_DELAY} seconds"
+# Loop if specified
+case "${1}" in
+    loop|l)
+        echo "Looping every ${LOOP_DELAY}s"
         while true; do
-            run_query_loop
+            check
             echo '.--. .-.. . .- ... .     .-- .- .. -'
             sleep "${LOOP_DELAY}"
         done
         ;;
     *)
-        run_query_loop
+        check
         ;;
 esac
 
