@@ -1,98 +1,76 @@
 #!/bin/bash
+# Enhanced DNSTT Keep-Alive Script
+# Version 1.1
 
-## Copyright ©UDPTeam
-
-## Discord: https://discord.gg/civ3
-
-## Script to keep-alive your DNSTT server domain record query from target resolver/local dns server
-
-## Run this script excluded from your VPN tunnel (split VPN tunneling mode)
-
-## run command: ./globe-Multi.sh l
-
-## Repeat dig command loop time (seconds) (positive integer only)
-
+# Configuration Variables
+declare -a NAMESERVERS=('priv.ns1.jkimhost.com' 'priv.ns2.jkimhost.com' 'priv.ns3.jkimhost.com' 'priv.ns4.jkimhost.com' 'priv.ns5.jkimhost.com' 'freesg.ns.jkimhost.com' 'freeuk.ns.jkimhost.com')
+declare -a HOSTS=('124.6.181.12' '124.6.181.20' '112.198.126.124' '112.198.126.44' '112.198.126.116' '112.198.115.36' '112.198.115.44')
 LOOP_DELAY=5
 
-## Define the aligned nameservers and hosts
-
-declare -A SERVERS=(
-    ["james.ubuntu.sardinas.cf"]="121.54.70.132"
-    ["james.ubuntu.sardinas.cf"]="124.6.181.20 124.6.181.36 124.6.181.12"
-    ["priv.ns1.jkimhost.com"]="124.6.181.20 124.6.181.36 124.6.181.12"
-    ["priv.ns2.jkimhost.com"]="124.6.181.20 124.6.181.36 124.6.181.12"
-    ["priv.ns3.jkimhost.com"]="124.6.181.20 124.6.181.36 124.6.181.12"
-    ["priv.ns4.jkimhost.com"]="124.6.181.20 124.6.181.36 124.6.181.12"
-    ["priv.ns5.jkimhost.com"]="124.6.181.20 124.6.181.36 124.6.181.12"
-    ["freesg.ns.jkimhost.com"]="124.6.181.20 124.6.181.36 124.6.181.12"
-    ["freeuk.ns.jkimhost.com"]="124.6.181.20 124.6.181.36 124.6.181.12"
-)
-
-## Linux' dig command executable filepath
-## Select value: "CUSTOM|C" or "DEFAULT|D"
-
+# Custom dig command path
 DIG_EXEC="DEFAULT"
+CUSTOM_DIG="/data/data/com.termux/files/home/go/bin/fastdig"
 
-## if set to CUSTOM, enter your custom dig executable path here
+# Function to check the DNS query
+check_dns_query() {
+  for host in "${HOSTS[@]}"; do
+    for ns in "${NAMESERVERS[@]}"; do
+      local result
+      result=$(timeout -k 3 3 "${_DIG}" @"${host}" "${ns}")
+      local color_code=$([[ -z ${result} ]] && echo "31" || echo "32")
+      echo -e "\e[1;${color_code}m DNS Server: ${ns}, Host: ${host}\e[0m"
+    done
+  done
+}
 
-CUSTOM_DIG=/data/data/com.termux/files/home/go/bin/fastdig
+# Function to end the script cleanly
+clean_exit() {
+  echo "Exiting script..."
+  unset NAMESERVERS HOSTS LOOP_DELAY _DIG DIG_EXEC CUSTOM_DIG
+  trap - 2 15
+  # Removed the exit command
+}
 
-######################################
-######################################
-######################################
-######################################
-######################################
+# Setting up the dig command
+setup_dig_command() {
+  case "${DIG_EXEC}" in
+    DEFAULT|D)
+      _DIG="$(command -v dig)"
+      ;;
+    CUSTOM|C)
+      _DIG="${CUSTOM_DIG}"
+      ;;
+    *)
+      echo "Invalid DIG_EXEC setting. Exiting."
+      exit 1
+      ;;
+  esac
 
-VER=0.1
+  if [[ ! -x ${_DIG} ]]; then
+    echo "Dig command not found. Please install it or set the correct path."
+    exit 1
+  fi
+}
 
-case "${DIG_EXEC}" in
-DEFAULT|D)
-    _DIG="$(command -v dig)"
+# Main Script Execution
+echo "DNSTT Keep-Alive Script - Version 1.1"
+setup_dig_command
+trap clean_exit 2 15
+
+echo "DNS Servers: ${NAMESERVERS[*]}"
+echo "Press CTRL+C to stop the script."
+
+case "${1}" in
+  loop|l)
+    echo "Running in loop mode. Delay: ${LOOP_DELAY} seconds."
+    while true; do
+      check_dns_query
+      sleep "${LOOP_DELAY}"
+    done
     ;;
-CUSTOM|C)
-    _DIG="${CUSTOM_DIG}"
+  *)
+    check_dns_query
     ;;
 esac
 
-if [ ! $(command -v ${_DIG}) ]; then
-    printf "Dig command failed to run, please install dig (dnsutils) or check DIG_EXEC & CUSTOM_DIG variables inside $( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )/$(basename "$0") file.\n"
-    exit 1
-fi
-
-check() {
-    for server in "${!SERVERS[@]}"; do
-        for host in ${SERVERS["$server"]}; do
-            T="${host}"
-            R="${server}"
-            
-            # Ping and host lookup
-            ping -c 1 "${T}" &  # Ping the nameserver in the background
-            host "${R}" "${T}" &  # Host lookup in the background
-            
-            # DNS query
-            if timeout -k 3 3 ${_DIG} @${T} "${R}"; then
-                M=32  # Success code
-            else
-                M=31  # Error code
-            fi
-            echo -e "\e[${M}m${R} @ ${T}\e[0m"
-        done
-    done
-}
-
-echo "DNSTT Keep-Alive script <Discord @civ3>"
-echo "DNS List:"
-for server in "${!SERVERS[@]}"; do
-    echo -e "\e[34m${server}\e[0m -> ${SERVERS["$server"]}"
-done
-echo "CTRL + C to close script"
-
-if [ "${LOOP_DELAY}" -eq 1 ]; then
-    let "LOOP_DELAY++"
-fi
-
-while true; do
-    check
-    echo '.--. .-.. . .- ... .     .-- .- .. -'
-    sleep ${LOOP_DELAY}
-done
+# clean_exit is no longer required here if you want the script to keep running
