@@ -1,76 +1,24 @@
 #!/bin/bash
-# Enhanced DNSTT Keep-Alive Script
-# Version 1.1
 
-# Configuration Variables
-declare -a NAMESERVERS=('priv.ns1.jkimhost.com' 'priv.ns2.jkimhost.com' 'priv.ns3.jkimhost.com' 'priv.ns4.jkimhost.com' 'priv.ns5.jkimhost.com' 'freesg.ns.jkimhost.com' 'freeuk.ns.jkimhost.com')
-declare -a HOSTS=('124.6.181.12' '124.6.181.20' '112.198.126.124' '112.198.126.44' '112.198.126.116' '112.198.115.36' '112.198.115.44')
-LOOP_DELAY=5
+# Define the nameservers and hosts
+nameservers=("priv.ns1.jkimhost.com" "priv.ns2.jkimhost.com" "priv.ns3.jkimhost.com" "priv.ns4.jkimhost.com" "priv.ns5.jkimhost.com" "freesg.ns.jkimhost.com" "freeuk.ns.jkimhost.com")
+hosts=("124.6.181.20" "124.6.181.36" "124.6.181.12")
 
-# Custom dig command path
-DIG_EXEC="DEFAULT"
-CUSTOM_DIG="/data/data/com.termux/files/home/go/bin/fastdig"
-
-# Function to check the DNS query
-check_dns_query() {
-  for host in "${HOSTS[@]}"; do
-    for ns in "${NAMESERVERS[@]}"; do
-      local result
-      result=$(timeout -k 3 3 "${_DIG}" @"${host}" "${ns}")
-      local color_code=$([[ -z ${result} ]] && echo "31" || echo "32")
-      echo -e "\e[1;${color_code}m DNS Server: ${ns}, Host: ${host}\e[0m"
+# Function to check each nameserver for each host
+check_nameservers() {
+    for ns in "${nameservers[@]}"; do
+        for host in "${hosts[@]}"; do
+            if dig @$ns $host +short +time=1 +retries=0 | grep -q '^[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+'; then
+                echo "Success: $host resolved by $ns"
+            else
+                echo "Fail: $host not resolved by $ns"
+            fi
+        done
     done
-  done
 }
 
-# Function to end the script cleanly
-clean_exit() {
-  echo "Exiting script..."
-  unset NAMESERVERS HOSTS LOOP_DELAY _DIG DIG_EXEC CUSTOM_DIG
-  trap - 2 15
-  # Removed the exit command
-}
-
-# Setting up the dig command
-setup_dig_command() {
-  case "${DIG_EXEC}" in
-    DEFAULT|D)
-      _DIG="$(command -v dig)"
-      ;;
-    CUSTOM|C)
-      _DIG="${CUSTOM_DIG}"
-      ;;
-    *)
-      echo "Invalid DIG_EXEC setting. Exiting."
-      exit 1
-      ;;
-  esac
-
-  if [[ ! -x ${_DIG} ]]; then
-    echo "Dig command not found. Please install it or set the correct path."
-    exit 1
-  fi
-}
-
-# Main Script Execution
-echo "DNSTT Keep-Alive Script - Version 1.1"
-setup_dig_command
-trap clean_exit 2 15
-
-echo "DNS Servers: ${NAMESERVERS[*]}"
-echo "Press CTRL+C to stop the script."
-
-case "${1}" in
-  loop|l)
-    echo "Running in loop mode. Delay: ${LOOP_DELAY} seconds."
-    while true; do
-      check_dns_query
-      sleep "${LOOP_DELAY}"
-    done
-    ;;
-  *)
-    check_dns_query
-    ;;
-esac
-
-# clean_exit is no longer required here if you want the script to keep running
+# Main loop
+while true; do
+    check_nameservers
+    sleep 5
+done
